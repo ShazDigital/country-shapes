@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Guess the Country</title>
+<style>
+  :root {
+    --bg: #0a0a0a;
+    --panel: #141414;
+    --fg: #f5f0eb;
+    --accent: #d4a574;
+    --correct: #4ade80;
+    --wrong: #f87171;
+    --muted: #7a7a7a;
+    --border: #2a2a2a;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, sans-serif;
+    background: var(--bg);
+    color: var(--fg);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px 16px 40px;
+  }
+  .header {
+    width: 100%;
+    max-width: 820px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  h1 {
+    font-size: 20px;
+    margin: 0;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  h1 span { color: var(--accent); }
+  .diff { display: flex; gap: 6px; }
+  .diff button {
+    padding: 7px 13px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--fg);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .diff button:hover { border-color: var(--accent); }
+  .diff button.active {
+    background: var(--accent);
+    color: #000;
+    border-color: var(--accent);
+  }
+  .score-bar {
+    width: 100%;
+    max-width: 820px;
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 14px;
+    font-variant-numeric: tabular-nums;
+  }
+  .score-bar b { color: var(--fg); font-weight: 600; }
+  .map-box {
+    width: 100%;
+    max-width: 820px;
+    aspect-ratio: 8/5;
+    background: var(--panel);
+    border-radius: 14px;
+    border: 1px solid var(--border);
+    padding: 24px;
+    position: relative;
+  }
+  svg { width: 100%; height: 100%; display: block; }
+  svg path.country {
+    fill: var(--fg);
+    stroke: var(--fg);
+    stroke-width: 0.6;
+    stroke-linejoin: round;
+  }
+  .choices {
+    width: 100%;
+    max-width: 820px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 18px;
+  }
+  .choices button {
+    padding: 18px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    color: var(--fg);
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.12s;
+    text-align: left;
+  }
+  .choices button:hover:not(:disabled) {
+    background: #1c1c1c;
+    border-color: var(--accent);
+    transform: translateY(-1px);
+  }
+  .choices button.correct,
+  .choices button.correct-highlight {
+    background: var(--correct);
+    color: #000;
+    border-color: var(--correct);
+    opacity: 1;
+  }
+  .choices button.wrong {
+    background: var(--wrong);
+    color: #000;
+    border-color: var(--wrong);
+  }
+  .choices button:disabled { cursor: default; }
+  .choices button:disabled:not(.correct):not(.wrong):not(.correct-highlight) { opacity: 0.5; }
+  #next {
+    margin-top: 18px;
+    padding: 13px 36px;
+    border-radius: 10px;
+    border: none;
+    background: var(--accent);
+    color: #000;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    cursor: pointer;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s, transform 0.12s;
+  }
+  #next:hover { transform: translateY(-1px); }
+  #next.visible { opacity: 1; pointer-events: auto; }
+  .loading {
+    color: var(--muted);
+    padding: 30px;
+    font-size: 14px;
+    text-align: center;
+    grid-column: 1 / -1;
+  }
+  .hint {
+    color: var(--muted);
+    font-size: 12px;
+    margin-top: 20px;
+    text-align: center;
+    letter-spacing: 0.02em;
+  }
+  kbd {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-size: 11px;
+    font-family: inherit;
+    color: var(--fg);
+  }
+  @media (max-width: 560px) {
+    .choices { grid-template-columns: 1fr; }
+    h1 { font-size: 17px; }
+    .map-box { padding: 14px; border-radius: 10px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Guess the <span>Country</span></h1>
+  <div class="diff">
+    <button data-diff="easy" class="active">Easy</button>
+    <button data-diff="medium">Medium</button>
+    <button data-diff="hard">Hard</button>
+  </div>
+</div>
+
+<div class="score-bar">
+  <span>Score <b id="score">0</b> / <b id="total">0</b></span>
+  <span>Streak <b id="streak">0</b> &nbsp;&middot;&nbsp; Best <b id="best">0</b></span>
+</div>
+
+<div class="map-box">
+  <svg id="map" viewBox="0 0 800 500" preserveAspectRatio="xMidYMid meet" aria-label="Country outline"></svg>
+</div>
+
+<div id="choices" class="choices">
+  <div class="loading">Loading world map...</div>
+</div>
+
+<button id="next">Next &rarr;</button>
+
+<div class="hint">
+  Tip: press <kbd>Enter</kbd> or <kbd>Space</kbd> to go to the next country &middot; <kbd>1</kbd>&ndash;<kbd>4</kbd> to pick an answer
+</div>
+
+<script type="module">
+import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
+
+// Curated tier 1: 50 famous, recognizable shapes
+const EASY = new Set([
+  'United States of America','Canada','Mexico','Brazil','Argentina','Chile',
+  'United Kingdom','France','Germany','Spain','Italy','Norway','Sweden','Finland',
+  'Poland','Ukraine','Russia','Turkey','Greece','Portugal','Netherlands',
+  'Egypt','South Africa','Nigeria','Kenya','Morocco','Madagascar',
+  'Saudi Arabia','Iran','Israel','India','Pakistan','Bangladesh','China',
+  'Japan','South Korea','North Korea','Vietnam','Thailand','Indonesia',
+  'Philippines','Malaysia','Australia','New Zealand','Cuba','Ireland','Iceland',
+  'Colombia','Peru','Venezuela'
+]);
+
+let allCountries = [];
+let pool = [];
+let current = null;
+let choices = [];
+let answered = false;
+let score = 0, total = 0, streak = 0, best = 0;
+
+const svg = document.getElementById('map');
+const choicesEl = document.getElementById('choices');
+const nextBtn = document.getElementById('next');
+const scoreEl = document.getElementById('score');
+const totalEl = document.getElementById('total');
+const streakEl = document.getElementById('streak');
+const bestEl = document.getElementById('best');
+
+best = parseInt(localStorage.getItem('cs_best')||'0',10);
+bestEl.textContent = best;
+
+async function load() {
+  const url = 'https://cdn.jsdelivr.net/gh/nvkelso/natural-earth-vector@master/geojson/ne_110m_admin_0_countries.geojson';
+  const res = await fetch(url);
+  const geo = await res.json();
+  allCountries = geo.features
+    .map(f => {
+      const p = f.properties;
+      const name = p.NAME_EN || p.NAME || p.ADMIN;
+      return { feature: f, name, pop: p.POP_EST || 0, region: p.CONTINENT || '' };
+    })
+    .filter(c => c.name && c.name !== 'Antarctica');
+  setDifficulty('easy');
+  nextRound();
+}
+
+function setDifficulty(d) {
+  document.querySelectorAll('.diff button').forEach(b => {
+    b.classList.toggle('active', b.dataset.diff === d);
+  });
+  if (d === 'easy') {
+    pool = allCountries.filter(c => EASY.has(c.name));
+  } else if (d === 'medium') {
+    pool = allCountries.filter(c => c.pop > 1_000_000);
+  } else {
+    pool = allCountries.slice();
+  }
+}
+
+document.querySelectorAll('.diff button').forEach(b => {
+  b.addEventListener('click', () => {
+    setDifficulty(b.dataset.diff);
+    score = 0; total = 0; streak = 0;
+    updateScore();
+    nextRound();
+  });
+});
+
+function pickWrongs(target, n) {
+  // prefer same continent for tougher decoys
+  const same = allCountries.filter(c => c !== target && c.region === target.region);
+  const other = allCountries.filter(c => c !== target && c.region !== target.region);
+  const shuffle = a => a.slice().sort(() => Math.random() - 0.5);
+  const bag = [...shuffle(same), ...shuffle(other)];
+  const out = [];
+  const used = new Set([target.name]);
+  for (const c of bag) {
+    if (used.has(c.name)) continue;
+    out.push(c);
+    used.add(c.name);
+    if (out.length === n) break;
+  }
+  return out;
+}
+
+function nextRound() {
+  answered = false;
+  nextBtn.classList.remove('visible');
+  current = pool[Math.floor(Math.random() * pool.length)];
+  const wrongs = pickWrongs(current, 3);
+  choices = [current, ...wrongs].sort(() => Math.random() - 0.5);
+  drawCountry(current.feature);
+  renderChoices();
+}
+
+function drawCountry(feature) {
+  const w = 800, h = 500, pad = 30;
+  const projection = d3.geoMercator().fitSize([w - pad*2, h - pad*2], feature);
+  const path = d3.geoPath(projection);
+  svg.innerHTML = `<g transform="translate(${pad},${pad})"><path class="country" d="${path(feature)}"/></g>`;
+}
+
+function renderChoices() {
+  choicesEl.innerHTML = '';
+  choices.forEach((c, i) => {
+    const btn = document.createElement('button');
+    btn.innerHTML = `<span style="color:var(--muted);font-size:11px;margin-right:8px;">${i+1}</span>${c.name}`;
+    btn.addEventListener('click', () => answer(c, btn));
+    choicesEl.appendChild(btn);
+  });
+}
+
+function updateScore() {
+  scoreEl.textContent = score;
+  totalEl.textContent = total;
+  streakEl.textContent = streak;
+  bestEl.textContent = best;
+}
+
+function answer(choice, btn) {
+  if (answered) return;
+  answered = true;
+  total++;
+  if (choice === current) {
+    score++;
+    streak++;
+    if (streak > best) {
+      best = streak;
+      localStorage.setItem('cs_best', best);
+    }
+    btn.classList.add('correct');
+  } else {
+    streak = 0;
+    btn.classList.add('wrong');
+    Array.from(choicesEl.children).forEach(b => {
+      if (b.textContent.includes(current.name)) b.classList.add('correct-highlight');
+    });
+  }
+  Array.from(choicesEl.children).forEach(b => b.disabled = true);
+  updateScore();
+  nextBtn.classList.add('visible');
+}
+
+nextBtn.addEventListener('click', nextRound);
+
+document.addEventListener('keydown', e => {
+  if ((e.key === 'Enter' || e.key === ' ') && answered) {
+    e.preventDefault();
+    nextRound();
+    return;
+  }
+  const n = parseInt(e.key, 10);
+  if (!answered && n >= 1 && n <= 4) {
+    const btn = choicesEl.children[n-1];
+    if (btn) btn.click();
+  }
+});
+
+load().catch(err => {
+  choicesEl.innerHTML = `<div class="loading">Failed to load map data: ${err.message}</div>`;
+});
+</script>
+
+</body>
+</html>
