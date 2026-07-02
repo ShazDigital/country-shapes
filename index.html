@@ -5,15 +5,61 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Guess the Country</title>
 <style>
-  :root {
+  :root,
+  [data-theme="dark"] {
     --bg: #0a0a0a;
     --panel: #141414;
+    --panel-hover: #1c1c1c;
     --fg: #f5f0eb;
     --accent: #d4a574;
+    --accent-fg: #000;
     --correct: #4ade80;
     --wrong: #f87171;
     --muted: #7a7a7a;
     --border: #2a2a2a;
+    --country-fill: var(--fg);
+    --country-stroke: var(--fg);
+  }
+  [data-theme="light"] {
+    --bg: #fafaf7;
+    --panel: #ffffff;
+    --panel-hover: #f2f0eb;
+    --fg: #1a1a1a;
+    --accent: #b8763a;
+    --accent-fg: #fff;
+    --correct: #16a34a;
+    --wrong: #dc2626;
+    --muted: #8a8a8a;
+    --border: #e4e2dc;
+    --country-fill: #1a1a1a;
+    --country-stroke: #1a1a1a;
+  }
+  [data-theme="colorful"] {
+    --bg: #fff4e6;
+    --panel: #ffe8f0;
+    --panel-hover: #ffd6e6;
+    --fg: #2d1b4e;
+    --accent: #ff3d8a;
+    --accent-fg: #fff;
+    --correct: #06d6a0;
+    --wrong: #ef476f;
+    --muted: #7c6a9e;
+    --border: #ffb3d1;
+    --country-fill: #7c3aed;
+    --country-stroke: #ff3d8a;
+  }
+  [data-theme="colorful"] body {
+    background: linear-gradient(135deg, #fff4e6 0%, #ffe0ec 40%, #e0f0ff 100%);
+  }
+  [data-theme="colorful"] h1 span {
+    background: linear-gradient(90deg, #ff3d8a, #7c3aed, #06d6a0);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  [data-theme="colorful"] .map-box {
+    background: linear-gradient(135deg, #ffffff 0%, #fff4fa 100%);
+    box-shadow: 0 8px 32px rgba(255, 61, 138, 0.12);
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
@@ -61,8 +107,34 @@
   .diff button:hover { border-color: var(--accent); }
   .diff button.active {
     background: var(--accent);
-    color: #000;
+    color: var(--accent-fg);
     border-color: var(--accent);
+  }
+  .theme {
+    display: flex;
+    gap: 4px;
+    padding: 3px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+  }
+  .theme button {
+    padding: 5px 11px;
+    border-radius: 999px;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .theme button:hover { color: var(--fg); }
+  .theme button.active {
+    background: var(--accent);
+    color: var(--accent-fg);
   }
   .score-bar {
     width: 100%;
@@ -87,8 +159,8 @@
   }
   svg { width: 100%; height: 100%; display: block; }
   svg path.country {
-    fill: var(--fg);
-    stroke: var(--fg);
+    fill: var(--country-fill);
+    stroke: var(--country-stroke);
     stroke-width: 0.6;
     stroke-linejoin: round;
   }
@@ -113,20 +185,20 @@
     text-align: left;
   }
   .choices button:hover:not(:disabled) {
-    background: #1c1c1c;
+    background: var(--panel-hover);
     border-color: var(--accent);
     transform: translateY(-1px);
   }
   .choices button.correct,
   .choices button.correct-highlight {
     background: var(--correct);
-    color: #000;
+    color: #fff;
     border-color: var(--correct);
     opacity: 1;
   }
   .choices button.wrong {
     background: var(--wrong);
-    color: #000;
+    color: #fff;
     border-color: var(--wrong);
   }
   .choices button:disabled { cursor: default; }
@@ -137,7 +209,7 @@
     border-radius: 10px;
     border: none;
     background: var(--accent);
-    color: #000;
+    color: var(--accent-fg);
     font-size: 14px;
     font-weight: 700;
     letter-spacing: 0.04em;
@@ -183,6 +255,11 @@
 
 <div class="header">
   <h1>Guess the <span>Country</span></h1>
+  <div class="theme" id="theme">
+    <button data-theme="dark">Dark</button>
+    <button data-theme="light">Light</button>
+    <button data-theme="colorful">Colorful</button>
+  </div>
   <div class="diff">
     <button data-diff="easy" class="active">Easy</button>
     <button data-diff="medium">Medium</button>
@@ -241,6 +318,20 @@ const bestEl = document.getElementById('best');
 
 best = parseInt(localStorage.getItem('cs_best')||'0',10);
 bestEl.textContent = best;
+
+// Theme toggle
+const themeEl = document.getElementById('theme');
+function setTheme(t) {
+  document.documentElement.setAttribute('data-theme', t);
+  localStorage.setItem('cs_theme', t);
+  themeEl.querySelectorAll('button').forEach(b => {
+    b.classList.toggle('active', b.dataset.theme === t);
+  });
+}
+themeEl.querySelectorAll('button').forEach(b => {
+  b.addEventListener('click', () => setTheme(b.dataset.theme));
+});
+setTheme(localStorage.getItem('cs_theme') || 'dark');
 
 async function load() {
   const url = 'https://cdn.jsdelivr.net/gh/nvkelso/natural-earth-vector@master/geojson/ne_110m_admin_0_countries.geojson';
